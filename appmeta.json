@@ -1,0 +1,20 @@
+{
+  "name" : "IonReporterUploader",
+  "ver" : " 5.18.0.22",
+  "inputs" : ["analysisDir", "pluginOutputDir"],
+  "outputs" : ["./outputs"],
+  "runOnceOnly" : "true",
+  "img" : "none",
+  "variantAnnotationKeys":["type"],
+  "inWorkflow" : "true",
+  "payOption" : "Free",
+  "validWorkflowAppTypes" : ["DNA", "RNA","DNA_RNA"],
+  "activationClass": "none",
+  "vendorActivation": "/share/apps/",
+  "dependsOn":["none"],
+  "scriptLauncher":"IonReporterUploader.py",
+  "embeddedOutput" : "true",
+  "executeDxAdapter":"true",
+  "runAllowed":"true",
+  "config":{"compatibleVersions":["IR512","IR514","IR516","IR518"]}
+}

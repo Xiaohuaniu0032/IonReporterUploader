@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="/plugins/IonReporterUploader/pluginMedia/jquery-1.8.2.min.js"></script>
+    <script src="../pluginMedia/jquery-1.8.2.min.js"></script>
+    <link rel="stylesheet" href="/plugins/IonReporterUploader/pluginMedia/app.css">
+    <link rel="stylesheet" href="../pluginMedia/app.css">
+    <link rel="stylesheet" href="/plugins/IonReporterUploader/pluginMedia/bootstrap.min.css">
+    <link rel="stylesheet" href="../pluginMedia/bootstrap.min.css">
+    <script>
+    $.urlParam = function(name){
+        var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+        if (results==null){
+           return null;
+        }
+        else{
+           return decodeURIComponent(results[1]) || 0;
+        }
+    }
+    $(document).ready(function() {
+    var filePath = $.urlParam('filePath');
+    console.log(filePath);
+    $.get(filePath, function(data) {
+    $("#containerlog").html(data);
+    }, 'text');
+    });
+    </script>
+
+</head>
+<body>
+<div class="header">
+    <div class="container-fluid">
+        <div class="row-fluid">
+            <div class="span12">
+
+                <h1 class="logo pull-left">Torrent Server</h1>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+<div id="containerlog" class="containerbox">
+
+
+</div>
+<div class="footer">
+    <div class="container">
+        <div class="row">
+            <div class="span12">
+                <img class="pull-left" src="/site_media/resources/img/ion-by-thermo-logo-125px.fa6db58f79ef.png" border="0">
+                <div class="pull-right">
+                    <p>For Research Use Only. Not for use in diagnostic procedures.</p>
+                    <p><span class="copyright">© 2017 Thermo Fisher Scientific Inc. All Rights Reserved.</span>
+                        <a href="http://ioncommunity.thermofisher.com/community/products/torrent_suite">Ion Community Support Site</a> |
+                        <a href="/licenses/terms-of-use.txt">Terms &amp; Conditions</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+</body>
+</html>

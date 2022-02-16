@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>IRU</title>
+
+    <script src="/pluginMedia/IonReporterUploader/jquery-1.8.2.min.js"></script>
+    <script src="pluginMedia/jquery-1.8.2.min.js"></script>
+    <script src="/pluginMedia/IonReporterUploader/bootstrap.min.js"></script>
+    <script src="pluginMedia/bootstrap.min.js"></script>
+
+    <!--make local copies of these -->
+    <script src="/pluginMedia/IonReporterUploader/handlebars.min.js"></script>
+    <script src="pluginMedia/handlebars.min.js"></script>
+    <link rel="stylesheet" href="/pluginMedia/IonReporterUploader/bootstrap.min.css">
+    <link rel="stylesheet" href="pluginMedia/bootstrap.min.css">
+    <link rel="stylesheet" href="/pluginMedia/IonReporterUploader/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="pluginMedia/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="/pluginMedia/IonReporterUploader/kendo.common.min.css">
+    <link rel="stylesheet" href="pluginMedia/kendo.common.min.css">
+    <link rel="stylesheet" href="/pluginMedia/IonReporterUploader/kendo.default.min.css">
+    <link rel="stylesheet" href="pluginMedia/kendo.default.min.css">
+    <link rel="stylesheet" href="/pluginMedia/IonReporterUploader/ir.css">
+    <link rel="stylesheet" href="pluginMedia/ir.css">
+    <link rel="stylesheet" href="/pluginMedia/IonReporterUploader/app.css">
+    <link rel="stylesheet" href="pluginMedia/app.css">
+
+
+    <script type="text/template" id="progressTmpl">
+        <div id="barWrap" class="progress">
+            <div class="progress-bar" id="barprogress" style="width: {{ status.totalProgress }}%;"></div>
+        </div>
+        {{#ifEquals status.statusCode 1}}
+        {{status.description}}
+        <br>
+        {{/ifEquals}}
+        <strong>Remaining Time :</strong> {{ status.remainingTime }}
+
+    </script>
+
+    <script type="text/template" id="finishedTmpl">
+        <h2><strong>Status: Completed</strong></h2>
+    </script>
+
+    <script>
+        Handlebars.registerHelper('humanVersion', function (version) {
+            if (version) {
+                var major = version[2];
+                var minor = version.substring(3);
+                return major + "." + minor
+            } else {
+                return ""
+            }
+
+        });
+        Handlebars.registerHelper('fullHumanVersion', function (version) {
+            if (version) {
+                var major = version[2];
+                var minor = version.substring(3);
+                return "Ion Reporter " + major + "." + minor
+            } else {
+                return ""
+            }
+        });
+        Handlebars.registerHelper('ifEquals', function(v1, v2, options) {
+                var result = (v1 === v2);
+                return result ? options.fn(this) : options.inverse(this);
+        });
+        var timer = null;
+        $(document).ready(function () {
+            var finishedTemplate = Handlebars.compile($("#finishedTmpl").html());
+            var progressTemplate = Handlebars.compile($("#progressTmpl").html());
+
+            $.get("startplugin.json", function (plugin) {
+                var extend_url = "/rundb/api/v1/plugin/IonReporterUploader/extend/uploadStatus/?format=json&plugin_result_id=" + plugin.runinfo.pluginresult;
+
+                var updateStatus = function () {
+                    $.get(extend_url, function (data) {
+                        var context = {
+                            status: data,
+                            plugin: plugin
+                        };
+                        if (context.status.totalProgress == "100") {
+                            clearTimeout(timer);
+                            $("#main").html(finishedTemplate(context));
+                        } else {
+                            if($("#overallStatus").val() == "Completed"){
+                                $('#barWrap').css('display', 'none');
+                            } else {
+                            timer = setTimeout(updateStatus, 1000 * 30);
+                            $("#main").html(progressTemplate(context));
+                            }
+
+                        }
+                    }).fail(function(){
+                        console.log("IRU Status Check API failure.");
+                       });
+                };
+                // Start the status polling initially;  It'll rerun itself as needed.
+                updateStatus();
+
+            });
+
+        });
+
+    </script>
+    <script>
+    function openErrors(){
+        if($('#errors').css('display') === 'none') {
+          $('#errors').show();
+        }
+        else {
+          $('#errors').hide();
+        }
+
+    }
+    function openWarnings(){
+        if($('#warnings').css('display') === 'none') {
+            $('#warnings').show();
+        }
+        else {
+            $('#warnings').hide();
+        }
+    }
+    function detailedStatus(){
+		var tbl=document.getElementById("detailsTable");
+		if(tbl.style.display=="block")
+		{
+			tbl.style.display="none";
+			document.getElementById("detailedStatusText").innerHTML="View detailed status &nbsp;";
+			$('#detailedStatusArrow').removeClass('arrow-up').addClass('arrow-down');
+			$(window.frameElement).attr('style', 'width:95%');
+		}
+		else
+		{
+			tbl.style.display="block";
+			document.getElementById("detailedStatusText").innerHTML="Hide detailed status &nbsp;";
+			$('#detailedStatusArrow').removeClass('arrow-down').addClass('arrow-up');
+		}
+	};
+
+        $(function(){
+               var displayValueOrEmpty = function(arg){
+                    if(arg === undefined || arg === null) {
+                        return '';
+                    } else {
+                        return arg;
+                    }
+               }
+               var serverSampleinfo = function(){
+                   $.ajax({
+                   url:"post/iruDetails.json",
+                   dataType:"json",
+                   type: "GET",
+                   success:function(data){
+                       if(data.serverInformation){
+                            $("#dataTable").css("display", "block");
+                            $("#serverName").html(data.serverInformation.serverName);
+                            $("#irVersion").html(data.serverInformation.irVersion);
+                            $("#uploadFolderPath").html(data.serverInformation.uploadFolderPath);
+                            $("#userName").html(data.serverInformation.userName);
+                            $("#organization").html(data.serverInformation.organization);
+                       }
+                       var trHTML = '';
+                       if(data.sampleDetails && Object.keys(data.sampleDetails).length > 0){
+
+                           $("#fileStatusTable").css("display", "block");
+                           $('#fileStatusTableInfo').empty();
+                           var samples = data.sampleDetails;
+
+                           $.each(samples, function(i, item){
+                                trHTML = '<tr><td>' + displayValueOrEmpty(item.tsSampleName) + '</td><td>' + displayValueOrEmpty(item.irSampleName) + '</td><td>' + displayValueOrEmpty(item.sampleSize) + '</td><td>' + displayValueOrEmpty(item.status) + '</td><td>' + displayValueOrEmpty(item.isValid) + '</td></tr>';
+                                $('#fileStatusTableInfo').append(trHTML);
+                           });
+
+
+                       }
+
+                       if(data.csvSampleInfoDefinedMessage){
+                            setImageSrcAttr("#csvdownloads", "csv");
+                            $("#csvdownloads").css("display", "block");
+                            $("#SampleInfoDefinedMessage").html(data.csvSampleInfoDefinedMessage);
+                       }
+                       if(data.csvUndefinedInfoMessage){
+                            setImageSrcAttr("#csvundownloads", "csv");
+                            $("#csvundownloads").css("display", "block");
+                            $("#SampleInfoUnDefinedMessage").html(data.csvUndefinedInfoMessage);
+                       }
+                       if(data.downloadIRULogsMessage){
+                            setImageSrcAttr("#logdownloads", "log");
+                            $("#logdownloads").css("display", "block");
+                            $("#downloadIRULogsMessage").html(data.downloadIRULogsMessage);
+                            if(data.downloadIRULogsMessage.includes("Download IRU logs")){
+                                window.pluginFinished = true;
+                            }
+                       }
+                       if(data.overallStatus){
+                            $("#overallStatus").val(data.overallStatus);
+                       }
+                       if(data.errorMessages && Object.keys(data.errorMessages).length > 0){
+                           $("#errormessagesDiv").css("display", "block");
+                           if(data.errorMessages){
+                               var errormsg = '';
+                               var counterror;
+                               $('#errors').empty();
+                               $.each(data.errorMessages, function(i, item){
+                                   errormsg = '<p><img style="height:15px;width:15px"/>' + ' ' + displayValueOrEmpty(item) + '<p>';
+                                   $('#errors').append(errormsg);
+                                   setImageSrcAttr("#errors", "error");
+                                   counterror = i+1;
+                               });
+                               $('#counterrors').html(counterror);
+
+                           }
+
+                       }
+                       if(data.warningMessages && Object.keys(data.warningMessages).length > 0){
+                           $("#warningmessageDiv").css("display", "block");
+                           if(data.warningMessages){
+                               var warnmsg = '';
+                               var countwarning;
+                               $('#warnings').empty();
+                               $.each(data.warningMessages, function(i, item){
+                                   warnmsg = '<p><img style="height:15px;width:15px" />' + ' ' + displayValueOrEmpty(item) + '<p>';
+                                   $('#warnings').append(warnmsg);
+                                   setImageSrcAttr("#warnings", "warning");
+                                   countwarning = i+1;
+                               });
+                               $('#countwarnings').html(countwarning);
+
+
+                           }
+                       }
+                   }
+                   });
+               }
+
+               var setImageSrcAttr = function(id, imageName) {
+                   if($(id).context.URL.indexOf("genexus") > -1) {
+                       $(id).find("img").attr('src','pluginMedia/img/' + imageName + '.png');
+                   } else {
+                       $(id).find("img").attr('src','/plugins/IonReporterUploader/pluginMedia/img/' + imageName + '.png');
+                   }
+               }
+               var convertFilePathsForPreAndPost = function(param) {
+                   param = "../"+param;
+                   return param;
+               }
+               var sampleStatus = function(){
+                   $.ajax({
+                   url:"post/sampleStatus.json",
+                   dataType:"json",
+                   type: "GET",
+                   success:function(data){
+                       var trHTMLstatus = '';
+                       if(data.sampleStatuses && Object.keys(data.sampleStatuses).length > 0){
+                           var viewstatus = data.sampleStatuses;
+                           $('#statusDetailsInfo').empty();
+                           $.each(viewstatus, function (i, itemstatus) {
+                                var stdOutFileParam, logFileParam, outputFileParam, inputFileParam;
+
+                                itemstatus.stdOutFilePath ? stdOutFileParam = 'filePath='+encodeURIComponent(convertFilePathsForPreAndPost(itemstatus.stdOutFilePath)) : stdOutFileParam = null;
+                                itemstatus.logFilePath ? logFileParam = 'filePath='+encodeURIComponent(convertFilePathsForPreAndPost(itemstatus.logFilePath)) : logFileParam = null;
+                                itemstatus.progressFilePath ? outputFileParam = 'filePath='+encodeURIComponent(convertFilePathsForPreAndPost(itemstatus.progressFilePath)) : outputFileParam = null;
+                                itemstatus.inputFilePath ? inputFileParam = 'filePath='+encodeURIComponent(convertFilePathsForPreAndPost(itemstatus.inputFilePath)) : inputFileParam = null;
+                                var Output = (outputFileParam !==null || outputFileParam!== "") ? "Output" : '';
+                                trHTMLstatus = '<tr><td>' + displayValueOrEmpty(itemstatus.operation) + '</td>';
+                                trHTMLstatus += '<td>' + displayValueOrEmpty(itemstatus.operationStatus) + '</td>';
+                                stdOutFileParam === null ? trHTMLstatus += '<td></td>' : trHTMLstatus += '<td><a href="results/resultsFile.html?'+ stdOutFileParam + '" id="stdinfo" target="_blank">' + "Stdout" + ' ' + '<span class="glyphicon glyphicon-new-window" title="open in new tab"></span> </a></td>';
+                                logFileParam === null ? trHTMLstatus += '<td></td>' : trHTMLstatus += '<td><a href="results/resultsFile.html?'+logFileParam+'" id="loginfo" target="_blank">' + "Log" + ' ' + '<span class="glyphicon glyphicon-new-window" title="open in new tab"></span></a></td>';
+                                inputFileParam === null ? trHTMLstatus += '<td></td>' : trHTMLstatus += '<td><a href="results/resultsFile.html?'+inputFileParam+'" id="inputinfo" target="_blank">' + "Input" + ' ' + '<span class="glyphicon glyphicon-new-window" title="open in new tab"></span></a></td>';
+                                outputFileParam === null ? trHTMLstatus += '<td></td>' : trHTMLstatus += '<td><a href="results/resultsFile.html?'+outputFileParam+ '" id="progressinfo" target="_blank">' + Output + ' ' + '<span class="glyphicon glyphicon-new-window" title="open in new tab"></span></a></td></tr>';
+                                $('#statusDetailsInfo').append(trHTMLstatus);
+                           });
+
+                           var tdVal;
+                           $.each(viewstatus, function (i, itemstatus) {
+                               $('#statusDetailsdata > tbody  > tr').each(function(){
+                                    tdVal = $('td:eq(0)', this).text();
+                                    if(tdVal === i && itemstatus.colorStyle === 'redstyle') {
+                                        $(this).addClass('redstyle');
+                                    }
+                               });
+
+                           });
+                       }
+
+                   }
+                   });
+               }
+               serverSampleinfo();
+               sampleStatus();
+               var autoRefreshStatus =  function() {
+                    serverSampleinfo();
+                    sampleStatus();
+                    if(window.pluginFinished === true) {
+                        clearInterval(myVar);
+                    }
+               };
+
+              var myVar = setInterval( function() {
+                autoRefreshStatus()
+              }, 5000);
+
+        });
+
+    </script>
+
+</head>
+
+<body class="statusbackground">
+<div class="heading">
+    <table class="serverinfotable" id="dataTable">
+        <tr>
+            <td><b>Server Name:</b></td>
+            <td class="serverinfo-align"><span id="serverName"></span></td>
+        </tr>
+        <tr>
+            <td><b>IR Version:</b></td>
+            <td class="serverinfo-align"><span id="irVersion"></span></td>
+        </tr>
+        <tr>
+            <td><b>Upload Folder Path:</b></td>
+            <td class="serverinfo-align"><span id="uploadFolderPath"></span></td>
+        </tr>
+        <tr>
+            <td><b>User:</b></td>
+            <td class="serverinfo-align"><span id="userName"></span></td>
+        </tr>
+        <tr>
+            <td><b>Org:</b></td>
+            <td class="serverinfo-align"><span id="organization"></span></td>
+        </tr>
+    </table>
+</div>
+
+<div id="main" class="container" style="width:100%">
+
+</div>
+
+<div id="errormessagesDiv" class="messages">
+    <div class="headerstatusdetail">
+        <a onclick="openErrors()" class="messagescurser btn-link"><b>Errors</b>(<span id="counterrors"></span>)</a><br/>
+        <div id="errors" class="messages">
+        </div>
+    </div>
+</div>
+<br/>
+<div id="warningmessageDiv" class="messages">
+    <div class="headerstatusdetail">
+        <a onclick="openWarnings()" class="messagescurser btn-link"><b>Warnings</b>(<span id="countwarnings"></span>)</a><br/>
+        <div id="warnings" class="messages">
+        </div>
+    </div>
+</div>
+<br/>
+<div class="k-grid k-widget statusdisplay" width="80%" id="fileStatusTable">
+    <table id="fileStatusTabledata" width="80%" class="table-striped statustable" align='center' border="1px solid">
+        <thead class="k-grid-header">
+        <tr>
+            <th class="k-header inforalignleft">TS Sample Name</th>
+            <th class="k-header inforalignleft">IR Sample Name</th>
+            <th class="k-header inforalignleft">Size</th>
+            <th class="k-header inforalignleft">Status</th>
+            <th class="k-header inforalignleft">Validity</th>
+        </tr>
+        </thead>
+        <tbody id="fileStatusTableInfo"></tbody>
+    </table>
+</div>
+
+<div class="k-grid k-widget statusdisplay" width="80%" id="detailsTable">
+    <h3 class="headerstatusdetail">Detailed Status</h3>
+    <table id="statusDetailsdata" width="80%" class="table-striped statustable" align='center' border="1px solid">
+        <thead class="k-grid-header">
+        <tr>
+            <th class="k-header inforalignleft">Stage</th>
+            <th class="k-header inforalignleft">Status</th>
+            <th class="k-header inforalignleft">Stdout</th>
+            <th class="k-header inforalignleft">Log</th>
+            <th class="k-header inforalignleft">Input</th>
+            <th class="k-header inforalignleft">Output</th>
+        </tr>
+        </thead>
+        <tbody id="statusDetailsInfo"></tbody>
+    </table>
+    <br/>
+    <div id="csvdownloads" class="displaydownloads headerstatusdetail">
+        <a href="samplesUploadedAndDefined.csv" target="_blank"><img width="30px"/></a> <span
+            id="SampleInfoDefinedMessage"></span>
+    </div>
+    <div id="csvundownloads" class="displaydownloads headerstatusdetail">
+        <a href="samplesUploadedButNotDefined.csv" target="_blank"><img width="30px"/></a> <span
+            id="SampleInfoUnDefinedMessage"></span>
+    </div>
+    <div id="logdownloads" class="displaydownloads headerstatusdetail">
+        <a href="IRU_logs.zip" target="_blank"><img width="30px"/></a> <span id="downloadIRULogsMessage"></span>
+    </div>
+</div>
+<br/>
+<div>
+    <button onClick="detailedStatus()" class="btn headerstatusdetail" id="detailedStatus"><span id="detailedStatusText">View detailed status &nbsp;</span>
+        <div id="detailedStatusArrow" class="arrow-down pull-right" id="arrowHead" style="margin-top:7px"></div>
+    </button>
+</div>
+<input id="overallStatus" type="hidden"/>
+
+</body>
+</html>
